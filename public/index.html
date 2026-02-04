@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw History Viewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --border-color: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --success: #3fb950;
+      --warning: #d29922;
+      --error: #f85149;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-header h1::before {
+      content: '🦞';
+    }
+
+    .session-count {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Model Selector */
+    .model-selector {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+    }
+
+    .model-selector-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .model-selector-label::before {
+      content: '🤖';
+    }
+
+    .model-dropdown {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    .model-dropdown:hover {
+      border-color: var(--accent);
+    }
+
+    .model-dropdown:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+    }
+
+    .model-dropdown option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      padding: 8px;
+    }
+
+    .model-info {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .model-tag {
+      background: var(--bg-primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .model-status {
+      font-size: 11px;
+      margin-top: 6px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .model-status.success {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--success);
+    }
+
+    .model-status.warning {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--warning);
+    }
+
+    .model-status.loading {
+      color: var(--text-secondary);
+    }
+
+    .session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .session-item {
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: background 0.15s;
+    }
+
+    .session-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .session-item.active {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--accent);
+    }
+
+    .session-item.current {
+      border-left: 3px solid var(--success);
+    }
+
+    .session-time {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .session-preview {
+      font-size: 13px;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .session-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Main content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .main-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .main-header h2 {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .switch-btn {
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+
+    .switch-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .switch-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .switch-btn.is-current {
+      background: var(--success);
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .message {
+      margin-bottom: 24px;
+      max-width: 85%;
+    }
+
+    .message.user {
+      margin-left: auto;
+    }
+
+    .message-role {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .message-content {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user .message-content {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .message.assistant .message-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+    }
+
+    /* Tool content */
+    .tool-call {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      overflow-x: auto;
+    }
+
+    .tool-name {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Refresh button */
+    .refresh-btn {
+      padding: 6px 12px;
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-left: 12px;
+    }
+
+    .refresh-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.success {
+      background: rgba(63, 185, 80, 0.9);
+      color: white;
+    }
+
+    .toast.error {
+      background: rgba(248, 81, 73, 0.9);
+      color: white;
+    }
+
+    .toast.warning {
+      background: rgba(210, 153, 34, 0.9);
+      color: white;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>History Viewer</h1>
+        <div class="session-count" id="sessionCount">Loading...</div>
+      </div>
+      
+      <!-- Model Selector -->
+      <div class="model-selector">
+        <div class="model-selector-label">Default Model</div>
+        <select class="model-dropdown" id="modelDropdown" disabled>
+          <option value="">Loading models...</option>
+        </select>
+        <div class="model-info" id="modelInfo"></div>
+        <div class="model-status loading" id="modelStatus"></div>
+      </div>
+      
+      <div class="session-list" id="sessionList">
+        <div class="loading">Loading sessions...</div>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="main-header" id="mainHeader" style="display: none;">
+        <h2 id="sessionTitle">Select a session</h2>
+        <div>
+          <button class="switch-btn" id="switchBtn" disabled>Switch to this session</button>
+          <button class="refresh-btn" onclick="loadSessions()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="messages" id="messages">
+        <div class="empty-state">
+          <div class="empty-state-icon">💬</div>
+          <div>Select a session from the left to view messages</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let sessions = [];
+    let currentSessionId = null;
+    let selectedSessionId = null;
+    let models = [];
+    let currentModel = null;
+    let modelAliases = {};
+
+    // Toast notification
+    function showToast(message, type = 'success') {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Load models
+    async function loadModels() {
+      const dropdown = document.getElementById('modelDropdown');
+      const infoDiv = document.getElementById('modelInfo');
+      const statusDiv = document.getElementById('modelStatus');
+
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+
+        if (data.error) {
+          dropdown.innerHTML = '<option value="">Config not found</option>';
+          statusDiv.className = 'model-status warning';
+          statusDiv.textContent = '⚠ OpenClaw config not found';
+          return;
+        }
+
+        models = data.models;
+        currentModel = data.currentModel;
+        modelAliases = data.aliases;
+
+        // Populate dropdown
+        dropdown.innerHTML = models.map(m => {
+          const alias = Object.entries(modelAliases).find(([k, v]) => k === m.id)?.[1]?.alias;
+          const aliasText = alias ? ` (${alias})` : '';
+          const selected = m.id === currentModel ? 'selected' : '';
+          return `<option value="${m.id}" ${selected}>${m.name}${aliasText}</option>`;
+        }).join('');
+
+        dropdown.disabled = false;
+        updateModelInfo(currentModel);
+
+        statusDiv.className = 'model-status success';
+        statusDiv.textContent = '✓ Ready';
+        setTimeout(() => statusDiv.textContent = '', 2000);
+
+      } catch (err) {
+        console.error('Failed to load models:', err);
+        dropdown.innerHTML = '<option value="">Error loading</option>';
+        statusDiv.className = 'model-status error';
+        statusDiv.textContent = '✗ Failed to load models';
+      }
+    }
+
+    // Update model info display
+    function updateModelInfo(modelId) {
+      const infoDiv = document.getElementById('modelInfo');
+      const model = models.find(m => m.id === modelId);
+
+      if (!model) {
+        infoDiv.innerHTML = '';
+        return;
+      }
+
+      const tags = [];
+      if (model.contextWindow) {
+        tags.push(`<span class="model-tag">${(model.contextWindow / 1000).toFixed(0)}K context</span>`);
+      }
+      if (model.maxTokens) {
+        tags.push(`<span class="model-tag">${(model.maxTokens / 1000).toFixed(0)}K output</span>`);
+      }
+      if (model.reasoning) {
+        tags.push(`<span class="model-tag">🧠 Reasoning</span>`);
+      }
+      if (model.cost) {
+        const costStr = `$${model.cost.input}/${model.cost.output}`;
+        tags.push(`<span class="model-tag">💰 ${costStr}</span>`);
+      }
+
+      infoDiv.innerHTML = tags.join('');
+    }
+
+    // Handle model change
+    async function handleModelChange(modelId) {
+      const dropdown = document.getElementById('modelDropdown');
+      const statusDiv = document.getElementById('modelStatus');
+
+      if (!modelId || modelId === currentModel) return;
+
+      dropdown.disabled = true;
+      statusDiv.className = 'model-status loading';
+      statusDiv.textContent = 'Switching model...';
+
+      try {
+        const res = await fetch('/api/models/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modelId })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          currentModel = modelId;
+          updateModelInfo(modelId);
+          statusDiv.className = 'model-status success';
+          statusDiv.textContent = '✓ Model switched';
+          showToast('Model switched! Restart OpenClaw to apply.', 'warning');
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        console.error('Failed to switch model:', err);
+        statusDiv.className = 'model-status error';
+        statusDiv.textContent = '✗ Switch failed';
+        showToast('Failed: ' + err.message, 'error');
+        // Revert dropdown
+        dropdown.value = currentModel;
+      }
+
+      dropdown.disabled = false;
+      setTimeout(() => {
+        if (statusDiv.textContent.startsWith('✓')) {
+          statusDiv.textContent = '';
+        }
+      }, 3000);
+    }
+
+    async function loadSessions() {
+      try {
+        const [sessionsRes, currentRes] = await Promise.all([
+          fetch('/api/sessions').then(r => r.json()),
+          fetch('/api/current-session').then(r => r.json())
+        ]);
+
+        sessions = sessionsRes.sessions;
+        currentSessionId = currentRes.currentSessionId;
+
+        document.getElementById('sessionCount').textContent = 
+          `${sessions.length} sessions found`;
+
+        renderSessionList();
+      } catch (err) {
+        console.error('Failed to load sessions:', err);
+        document.getElementById('sessionList').innerHTML = 
+          `<div class="empty-state">Error loading sessions</div>`;
+      }
+    }
+
+    function renderSessionList() {
+      const list = document.getElementById('sessionList');
+      
+      if (sessions.length === 0) {
+        list.innerHTML = '<div class="empty-state">No sessions found</div>';
+        return;
+      }
+
+      list.innerHTML = sessions.map(s => {
+        const date = new Date(s.updatedAt);
+        const timeStr = date.toLocaleString('zh-CN', {
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const isCurrent = s.id === currentSessionId;
+        const isSelected = s.id === selectedSessionId;
+        
+        return `
+          <div class="session-item ${isCurrent ? 'current' : ''} ${isSelected ? 'active' : ''}" 
+               onclick="selectSession('${s.id}')">
+            <div class="session-time">
+              ${timeStr}
+              ${isCurrent ? '<span style="color: var(--success);">● Current</span>' : ''}
+            </div>
+            <div class="session-preview">${s.preview || '(empty session)'}</div>
+            <div class="session-meta">${s.messageCount} messages · ${formatSize(s.size)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    async function selectSession(sessionId) {
+      selectedSessionId = sessionId;
+      renderSessionList();
+
+      const mainHeader = document.getElementById('mainHeader');
+      const messagesDiv = document.getElementById('messages');
+      const switchBtn = document.getElementById('switchBtn');
+      const sessionTitle = document.getElementById('sessionTitle');
+
+      mainHeader.style.display = 'flex';
+      messagesDiv.innerHTML = '<div class="loading">Loading messages...</div>';
+
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        const data = await res.json();
+
+        sessionTitle.textContent = `Session: ${sessionId.slice(0, 8)}...`;
+        
+        const isCurrent = sessionId === currentSessionId;
+        switchBtn.disabled = isCurrent;
+        switchBtn.textContent = isCurrent ? '✓ Current Session' : 'Switch to this session';
+        switchBtn.className = isCurrent ? 'switch-btn is-current' : 'switch-btn';
+        switchBtn.onclick = () => switchToSession(sessionId);
+
+        if (data.messages.length === 0) {
+          messagesDiv.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No messages in this session</div></div>';
+          return;
+        }
+
+        messagesDiv.innerHTML = data.messages.map(msg => {
+          const content = formatMessageContent(msg.content);
+          return `
+            <div class="message ${msg.role}">
+              <div class="message-role">${msg.role}</div>
+              <div class="message-content">${content}</div>
+            </div>
+          `;
+        }).join('');
+
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } catch (err) {
+        console.error('Failed to load session:', err);
+        messagesDiv.innerHTML = '<div class="empty-state">Error loading session</div>';
+      }
+    }
+
+    function formatMessageContent(content) {
+      if (typeof content === 'string') {
+        return escapeHtml(content);
+      }
+      if (Array.isArray(content)) {
+        return content.map(part => {
+          if (part.type === 'text') {
+            return escapeHtml(part.text || '');
+          }
+          if (part.type === 'tool_use') {
+            return `<div class="tool-call"><span class="tool-name">${escapeHtml(part.name)}</span><br>${escapeHtml(JSON.stringify(part.input, null, 2))}</div>`;
+          }
+          if (part.type === 'tool_result') {
+            const text = typeof part.content === 'string' ? part.content : JSON.stringify(part.content, null, 2);
+            return `<div class="tool-call">[Tool Result]<br>${escapeHtml(text.slice(0, 500))}${text.length > 500 ? '...' : ''}</div>`;
+          }
+          return '';
+        }).join('');
+      }
+      return escapeHtml(JSON.stringify(content));
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function switchToSession(sessionId) {
+      const switchBtn = document.getElementById('switchBtn');
+      switchBtn.disabled = true;
+      switchBtn.textContent = 'Switching...';
+
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/switch`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+          currentSessionId = sessionId;
+          renderSessionList();
+          switchBtn.textContent = '✓ Current Session';
+          switchBtn.className = 'switch-btn is-current';
+          showToast('Session switched! Refresh OpenClaw UI to use it.');
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        console.error('Failed to switch session:', err);
+        showToast('Failed: ' + err.message, 'error');
+        switchBtn.disabled = false;
+        switchBtn.textContent = 'Switch to this session';
+      }
+    }
+
+    // Event listeners
+    document.getElementById('modelDropdown').addEventListener('change', (e) => {
+      handleModelChange(e.target.value);
+    });
+
+    // Initial load
+    loadSessions();
+    loadModels();
+  </script>
+</body>
+</html>
