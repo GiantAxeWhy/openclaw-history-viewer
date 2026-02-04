@@ -14,7 +14,7 @@ A simple web app for browsing OpenClaw chat history, switching sessions, and man
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/openclaw-history-viewer.git
+git clone https://github.com/GiantAxeWhy/openclaw-history-viewer.git
 cd openclaw-history-viewer
 npm install
 ```

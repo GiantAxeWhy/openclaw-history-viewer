@@ -12,7 +12,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/openclaw-history-viewer.git"
+    "url": "https://github.com/GiantAxeWhy/openclaw-history-viewer.git"
   },
   "engines": {
     "node": ">=16.0.0"
